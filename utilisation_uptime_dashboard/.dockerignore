@@ -1,0 +1,43 @@
+# Exclude version control files and metadata
+.git
+.gitignore
+
+# Exclude Python bytecode and cache directories
+*.pyc
+*.pyo
+__pycache__/
+
+# Exclude local environment and configuration files
+.env
+
+# Exclude logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Exclude compiled wheels or build artifacts
+dist/
+build/
+*.whl
+
+# Exclude dependency folders (if dependencies are installed in the container)
+venv/
+virtualenv/
+*.egg-info/
+
+# Exclude IDE and editor configurations
+.vscode/
+.idea/
+
+# Exclude large or unnecessary files
+*.tar
+*.zip
+*.rar
+*.iso
+*.csv
+*.xlsx
+
+# Exclude other system files
+.DS_Store
+Thumbs.db

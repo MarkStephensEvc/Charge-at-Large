@@ -1,0 +1,731 @@
+---
+title: "Utilisation, Uptime and Availability Report"
+author:
+    - name: Mark Stephens, EV Data Analyst
+      email: 'mark@evc.org.au'
+      affiliations: 
+        - Electric Vehicle Council     
+toc: true
+toc-depth: 2              
+format:
+  html:
+    theme: minty
+    self-contained: true
+    embed-resources: true
+    minimal: true 
+    css: styles.css 
+execute:
+    echo: False    
+---
+```{python}
+# | include: False
+# | echo: false
+import matplotlib.colors as mcolors
+import geopandas as gpd
+import pandas as pd
+import plotly.express as px
+from helper_functions import * 
+from config import *
+from IPython.display import display
+from great_tables import GT, loc, style, md
+from datetime import datetime
+from pathlib import Path
+
+#from azure.storage.blob import BlobServiceClient 
+data_df = pd.read_parquet('wa_2024_november_processed_data.parquet')
+data_df = data_df.assign(state = 'WA')
+data_df = data_df[data_df.state == 'WA']
+state = data_df['state'].unique()[0]
+#state = 'NSW'
+#geodata
+geo_data = gpd.read_file('geodf_lga_filter.json')
+geo_data = geo_data.rename(columns = {'LGA_name':'lga_name'})
+geo_data = geo_data.set_index('lga_name')
+
+# Extract icon mappings from cpo_styles dictionary
+icon_map = {key:value['icon'] for key, value in cpo_styles.items()}
+
+#### State-wide level summary #######
+grouping_vars1 = ['cpo_name']
+#process data helper function
+snapshot_data1 = process_data1(data_df, grouping_vars1)
+#reporting summary statistics
+inuse_max, inuse_max_cpo = snapshot_data1.Utilisation_prop.max(), snapshot_data1.loc[snapshot_data1.Utilisation_prop.argmax(),grouping_vars1+['value']]
+inuse_min, inuse_min_cpo = snapshot_data1.Utilisation_prop.min(), snapshot_data1.loc[snapshot_data1.Utilisation_prop.argmin(),grouping_vars1+['value']]
+unavail_max, unavail_max_cpo = snapshot_data1.Unavailability_prop.max(), snapshot_data1.loc[snapshot_data1.Unavailability_prop.argmax(),grouping_vars1+['value']]
+unavail_min, unavail_min_cpo = snapshot_data1.Unavailability_prop.min(), snapshot_data1.loc[snapshot_data1.Unavailability_prop.argmin(),grouping_vars1+['value']]
+# breakdown stats
+charging_max, charging_max_cpo = snapshot_data1.Charging_prop.max(), snapshot_data1.loc[snapshot_data1.Charging_prop.argmax(),grouping_vars1+['value']]
+charging_min, charging_min_cpo = snapshot_data1.Charging_prop.min(), snapshot_data1.loc[snapshot_data1.Charging_prop.argmin(),grouping_vars1+['value']]
+avail_max, avail_max_cpo = snapshot_data1.Available_prop.max(), snapshot_data1.loc[snapshot_data1.Available_prop.argmax(),grouping_vars1+['value']]
+avail_min, avail_min_cpo = snapshot_data1.Available_prop.min(), snapshot_data1.loc[snapshot_data1.Available_prop.argmin(),grouping_vars1+['value']]
+avail_min_unavail = snapshot_data1.loc[snapshot_data1.Available_prop.argmin(),grouping_vars1+['value','Unavailable_prop']]
+
+# Max Utilisation composition
+max_util_data = snapshot_data1.loc[snapshot_data1.Utilisation_prop.argmax(),grouping_vars1+['Charging_prop','Finishing_prop','Reserved_prop']]
+
+###### LGA level summary #######
+#lga and cpo
+grouping_vars2 = ['lga_name','cpo_name']
+snapshot_data2 = process_data1(data_df, grouping_vars2)
+
+# High-level summary stats
+#Utilisation
+lga_inuse_max, lga_inuse_max_cpo = snapshot_data2.Utilisation_prop.max(), snapshot_data2.loc[snapshot_data2.Utilisation_prop.argmax(),grouping_vars2+['value']]
+#Uptime
+lga_uptime_max, lga_util_max_uptime = snapshot_data2.Uptime_prop.max(), snapshot_data2.loc[snapshot_data2.Utilisation_prop.argmax(),grouping_vars2+['value','Uptime_prop']]
+
+
+lga_evse_max, lga_evse_max_cpo = snapshot_data2.value.max(),snapshot_data2.loc[snapshot_data2.value.argmax(),grouping_vars2+['value','Utilisation_prop']]
+lga_unavail_max, lga_unavai_max_cpo = snapshot_data2.Unavailability_prop.max(), snapshot_data2.loc[snapshot_data2.Unavailability_prop.argmax(),grouping_vars2+['value']]
+lga_evse_max2, lga_evse_max_cpo2 = snapshot_data2.value.max(),snapshot_data2.loc[snapshot_data2.value.argmax(),grouping_vars2+['value','Unavailability_prop']]
+#LGA break down states
+lga_breakdown = snapshot_data2.loc[(snapshot_data2.cpo_name != 'Overall'),:]
+lga_finishing_sort = (lga_breakdown.loc[lga_breakdown.Finishing_prop.argsort(),
+                                        grouping_vars2+['value','Finishing_prop']]).tail(3)
+lga_unavailable_sort = (lga_breakdown.loc[(lga_breakdown.Unavailable_prop > 0.5),
+                                       grouping_vars2+['value','Unavailable_prop']])
+lga_charging_sort = (lga_breakdown.loc[lga_breakdown.Charging_prop.argsort(),
+                                        grouping_vars2+['value','Charging_prop']]).tail(3)
+#sorted data for table 1: LGA Utilisation and Uptime Snapshot
+keep_cols1 = ['Utilisation_prop','Uptime_prop','value','cpo_name','lga_name']
+lga_table1 = snapshot_data2[keep_cols1]
+lga_snapshot_data_sorted1 = (lga_table1
+.sort_values(by = ['Utilisation_prop','Uptime_prop'], ascending = False)
+.reset_index(drop = True))
+lga_snapshot_data_sorted1 = lga_snapshot_data_sorted1[lga_snapshot_data_sorted1['cpo_name'] != "Overall"]
+
+#sorted data for table 2: LGA Unavailability Snapshot
+keep_cols2 = ['Unavailability_prop','value','cpo_name','lga_name']
+lga_table2 = snapshot_data2[keep_cols2]
+lga_snapshot_data_sorted2 = (lga_table2
+.sort_values(by = ['Unavailability_prop'], ascending = False)
+.reset_index(drop = True))
+lga_snapshot_data_sorted2 = lga_snapshot_data_sorted2[lga_snapshot_data_sorted2['cpo_name'] != "Overall"]
+
+#sorted data for table 3: LGA Utilisation breakdown
+keep_cols3 = ['Charging_prop','Finishing_prop','Reserved_prop','Utilisation_prop','Available_prop','cpo_name','lga_name']
+lga_table3 = snapshot_data2[keep_cols3]
+lga_snapshot_data_sorted3 = (lga_table3
+.sort_values(by = ['Utilisation_prop'], ascending = False)
+.drop(columns = ['Utilisation_prop'])
+.reset_index(drop = True))
+lga_snapshot_data_sorted3 = lga_snapshot_data_sorted3[lga_snapshot_data_sorted3['cpo_name'] != "Overall"]
+
+#sorted data for table 4: LGA Unavailability breakdown
+keep_cols4 = ['Unavailable_prop','out_of_order_prop','Unknown_prop','Missing_prop','Unavailability_prop','cpo_name','lga_name']
+lga_table4 = snapshot_data2[keep_cols4]
+lga_snapshot_data_sorted4 = (lga_table4
+.sort_values(by = ['Unavailability_prop'], ascending = False)
+.drop(columns = ['Unavailability_prop'])
+.reset_index(drop = True))
+lga_snapshot_data_sorted4 = lga_snapshot_data_sorted4[lga_snapshot_data_sorted4['cpo_name'] != "Overall"]
+
+# LGA scatter mapbox layer 
+scatter_data = process_data2(data_df,interval_column='interval', variable_column='variable')
+
+# Government funded charge points
+#cpo Summary
+gov_funded_filtered = data_df.loc[(data_df.government_funded != 'not_funded'),:]
+if len(gov_funded_filtered) > 0:
+    grouping_vars3 = ['cpo_name','government_funded']
+    gov_funded1 = process_data1(gov_funded_filtered, grouping_vars3)
+    grouping_vars4 = ['cpo_name','lga_name','government_funded']
+    gov_funded2 = process_data1(gov_funded_filtered, grouping_vars4)
+    #lga_summary
+    #sorted data LGA Utilisation and Uptime Snapshot
+    keep_cols13 = ['government_funded','Utilisation_prop','Uptime_prop','value','cpo_name','lga_name']
+    lga_table13 = gov_funded2[keep_cols13]
+    lga_snapshot_data_sorted13 = (lga_table13
+    .sort_values(by = ['Uptime_prop','Utilisation_prop'], ascending = False)
+    .reset_index(drop = True))
+    lga_snapshot_data_sorted13 = lga_snapshot_data_sorted13[lga_snapshot_data_sorted13['cpo_name'] != "Overall"]
+
+    #sorted data for table 2: LGA Unavailability Snapshot
+    keep_cols14 = ['government_funded','Unavailability_prop','value','cpo_name','lga_name']
+    lga_table14 = gov_funded2[keep_cols14]
+    lga_snapshot_data_sorted14 = (lga_table14
+    .sort_values(by = ['Unavailability_prop'], ascending = False)
+    .reset_index(drop = True))
+    lga_snapshot_data_sorted14 = lga_snapshot_data_sorted14[lga_snapshot_data_sorted14['cpo_name'] != "Overall"]
+else:
+    no_gov_funded = ' No data on government funded charge points available '
+
+# Government funded summary stats
+#gov_funded1.loc[gov_funded1.Uptime_prop >0.98,:]
+```
+
+
+### Month of `{python} month` in `{python} state` {style="margin-top: 2vw; margin-bottom: 5vw;"}
+
+#### Definitions of status types and metrics
+
+|Status Types and Metrics | Definition |
+|:-:|:----------|
+| **Charging** | The port is currently charging a vehicle |
+| **Finishing** | Charging has ended but the vehicle is still plugged in, so the port is not yet available for another vehicle to use. |
+| **Reserved** | The port is currently reserved for a specific user or vehicle, so it will refuse to charge other users or vehicles. |
+| **Available** | No vehicle is plugged into the port; it is available for a new vehicle to plug in. |
+| **Unavailable** | The port is not available for charging at this time. This status often indicates the charger is awaiting maintenance or about to restart. |
+| **Out of Order** | The port is currently experiencing a fault or issue. |
+| **Unknown**   | An alternative status is observed other than previously defined, including cases of data transmission failure. |
+| **Missing**   | A derived non-charge point status for intervals of data loss due to temporary system outage. |
+| **Utilisation** | The proportion of time the chargers are either Charging, Finishing or Reserved out of the total observable time. This is calculated as follows: <br> $Utilisation = \dfrac{Charging + Finishing + Reserved}{Total - Unknown - Missing}$|
+| **Unavailability** | The proportion of time the chargers are either Unavailable or Out of Order out of the total observable time. This is calculated as follows: <br> $Unavailability = \dfrac{Unavailable + Out of Order}{Total - Unknown - Missing}$  |
+| **Uptime** | The proportion of time the chargers are either Charging, Finishing, Reserved or Available out of the total observable time. This is calculated as follows: <br> $Uptime = \dfrac{Charging + Finishing + Reserved + Available}{Total - Unknown - Missing}$ |
+
+: {.striped .hover}
+
+_______________
+
+## 1. `{python} state` State-wide Utilisation, Uptime and Unavailability Summary
+
+The state-wide Utilisation, Uptime and Availability summary gives the metrics across all chargepoints in the state of `{python} state` for the whole month of `{python} month`.
+```{python}
+# | include: True
+# | echo: false
+# | label: tbl-state_utilisation_Availability_summary
+# | tbl-cap: State-wide Utilisation, Uptime and Unavailability summary tables
+# | tbl-subcap: 
+# |   - "Charge point Utilisation and Uptime summary"
+# |   - "Charge point Unavailability summary" 
+# | layout-nrow: 2
+# Identify indices where 'icon' is null
+# Create a new column 'icon' based on the 'cpo_name' values
+summary_table_data = snapshot_data1.copy()
+summary_table_data['icon'] = summary_table_data['cpo_name'].map(icon_map)
+null_icon_rows = list(summary_table_data[summary_table_data['cpo_name'] == 'Overall'].index)
+summary_columns1 = ['Utilisation_prop', 'Uptime_prop', 'icon','value']
+
+table1 = (GT(summary_table_data[summary_columns1],rowname_col="icon")
+.tab_header(md(f"**Utilisation and Uptime of charge points in {state} for {month}**"))
+.cols_label(
+        Utilisation_prop = "Utilisation",
+        Uptime_prop = "Uptime",
+        value = "Evse port count",
+        icon="",
+)
+.cols_align(align='center')
+# formatting ----
+.fmt_number(
+    columns='value',
+    compact=True,
+    decimals=0,
+)
+.fmt_percent(columns=['Utilisation_prop', 'Uptime_prop'], decimals=1)
+.fmt_image("icon", width = '50%', height = '50%' , path="img/")
+)
+# add tab styles in a loop
+# lighten colour with - lighten_color("#6229C3",colour_mix)
+for _,styles in cpo_styles.items():
+  table1 = table1.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=styles['icon']),
+      )
+# add Totals row at the bottom      
+table1 = table1.tab_style(
+        style=style.text(weight="bold"),
+        locations=loc.body(rows=null_icon_rows),
+    )
+#Availability Table
+summary_columns2 = ['Unavailability_prop', 'icon','value']
+#Define the table
+table2 = (GT(summary_table_data[summary_columns2],rowname_col="icon")
+.tab_header(md(f"**Unavailability of charge points in {state} for {month}**"))
+.cols_label(
+        Unavailability_prop = "Unavailability",
+        value = "Evse port count",
+        icon="",
+)
+.cols_align(align='center')
+# formatting ----
+.fmt_number(
+    columns='value',
+    compact=True,
+    decimals=0,
+)
+.fmt_percent(columns=['Unavailability_prop'], decimals=1)
+.fmt_image("icon", width = '50%', height = '50%' , path="img/")
+)
+# add tab styles in a loop
+# lighten colour with - lighten_color("#6229C3",colour_mix)
+for _,styles in cpo_styles.items():
+  table2 = table2.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=styles['icon']),
+      )
+# add Totals row at the bottom      
+table2 = table2.tab_style(
+        style=style.text(weight="bold"),
+        locations=loc.body(rows=null_icon_rows),
+    )
+display(table1)
+display(table2) 
+```
+
+---
+
+> **High level Summary**<br>
+**`{python} inuse_max_cpo['cpo_name']`** charge points had the greatest proportion of *Utilisation* at **`{python} round(inuse_max*100,1)`%**, while **`{python} inuse_min_cpo['cpo_name']`** charge points had the lowest proportion of *Utilisation* **`{python} round(inuse_min*100,1)`%**. **`{python} unavail_max_cpo['cpo_name']`** charge points had the greatest proportion of *Unavailability* at **`{python} round(unavail_max*100,1)`%**, while **`{python} unavail_min_cpo['cpo_name']`** charge points had the lowest proportion of *Unavailability* **`{python} round(unavail_min*100,1)`%**.          
+
+---
+
+_______________
+
+## 2. `{python} state` State-wide Utilisation, Uptime and Unavailability breakdown 
+
+The state-wide Utilisation, Uptime and Unvailability breakdown gives the overall proportion of time for each of the constituent statuses across all chargepoints in the state of `{python} state` for the whole month of `{python} month`.
+```{python}
+# | include: True
+# | echo: false
+# | label: tbl-state_utilisation_Availability_breakdown
+# | tbl-cap: State-wide Utilisation, Uptime and Unavailability breakdown tables
+# | tbl-subcap: 
+# |   - "Charge point Utilisation and Uptime breakdown"
+# |   - "Charge point Unavailability breakdown" 
+# | layout-nrow: 2
+# Identify indices where 'icon' is null
+# Create a new column 'icon' based on the 'cpo_name' values
+snapshot_table_data = snapshot_data1.copy()
+snapshot_table_data['icon'] = snapshot_table_data['cpo_name'].map(icon_map)
+null_icon_rows = list(snapshot_table_data[snapshot_table_data['cpo_name'] == 'Overall'].index)
+utilisation_columns = ['Charging_prop', 'Finishing_prop', 'Reserved_prop','Available_prop','icon']
+
+table3 = (GT(snapshot_table_data[utilisation_columns],rowname_col="icon")
+.tab_header(md(f"**Utilisation and Uptime statuses in {state} for {month}**"))
+.cols_label(
+        Charging_prop = "Charging",
+        Finishing_prop = "Finishing",
+        Reserved_prop = "Reserved",
+        Available_prop = 'Available',
+        icon="",
+)
+.cols_align(align='center')
+# formatting ----
+.fmt_percent(columns=['Charging_prop', 'Finishing_prop', 'Reserved_prop', 'Available_prop'], decimals=1)
+.fmt_image("icon", width = '50%', height = '50%' , path="img/")
+)
+# add tab styles in a loop
+# lighten colour with - lighten_color("#6229C3",colour_mix)
+for _,styles in cpo_styles.items():
+  table3 = table3.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=styles['icon']),
+      )
+# add Totals row at the bottom      
+table3 = table3.tab_style(
+        style=style.text(weight="bold"),
+        locations=loc.body(rows=null_icon_rows),
+    )
+#Availability Table
+availability_columns = ['Unavailable_prop', 'out_of_order_prop','Unknown_prop','Missing_prop','icon']
+#Define the table
+table4 = (GT(snapshot_table_data[availability_columns],rowname_col="icon")
+.tab_header(md(f"**Unavailability statuses in {state} for {month}**"))
+.cols_label(
+        out_of_order_prop = "Out of Order",
+        Unavailable_prop = "Unavailable",
+        Unknown_prop = "Unknown",
+        Missing_prop = "Missing",
+        icon=""
+)
+.cols_align(align='center')
+# formatting ----
+.fmt_percent(columns=['Unavailable_prop', 'out_of_order_prop','Unknown_prop','Missing_prop'], decimals=1)
+.fmt_image("icon", width = '75%', height = '75%' , path="img/")
+)
+# add tab styles in a loop
+# lighten colour with - lighten_color("#6229C3",colour_mix)
+for _,styles in cpo_styles.items():
+  table4 = table4.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=styles['icon']),
+      )
+# add Totals row at the bottom      
+table4 = table4.tab_style(
+        style=style.text(weight="bold"),
+        locations=loc.body(rows=null_icon_rows),
+    )
+display(table3)
+display(table4) 
+```
+
+
+```{python}
+# | include: true
+# | echo: false
+# | label: fig-state-cpo_distribution
+# | fig-cap: State-wide Utilisation, Uptime and Unavailability breakdown per CPO
+
+stacked_bar_chart(snapshot_data1, state, month)
+```
+
+---
+
+> **High level Summary**<br>
+ For **`{python} max_util_data['cpo_name']`**, with the higher *Utilisation* rate of approximately **`{python} round(inuse_max*100,1)`%**, the majority of the time was spent in the *`{python} var_labels[max_util_data['Charging_prop':].index[max_util_data['Charging_prop':].argmax()]]`* state, accounting for **`{python} round((max_util_data['Charging_prop':].max()/(max_util_data['Charging_prop':].sum()))*100,1)`%** of *Utilisation* time. Also, **`{python} avail_max_cpo.cpo_name`** charge points were observed to be *Available* for charging **`{python} round(avail_max/avail_min,1)`** times greater than **`{python} avail_min_cpo.cpo_name`** charge points, which were observed to be *Unavailable* at a rate of **`{python} round(avail_min_unavail.Unavailable_prop*100,1)`%**. Despite the relatively low rate of the *Unavailable* status, the data connectivity between Charge@Large and the **`{python} max_util_data['cpo_name']`** charge point network was observed to be *Missing* at a rate of **21.2%**.  
+
+_______________
+
+```{python}
+n = 10
+```
+
+## 3. Local Government Area Utilisation, Uptime and Unavailability Snapshot
+The local government area (LGA) snapshot gives the proportion of time for all charge points across the LGAs of `{python} state`. The tables below give the top `{python} n` CPOs across LGAs in chargepoint utilisation.
+
+```{python}
+# | include: True
+# | echo: false
+# | label: tbl-lga_utilisation_snapshot
+# | tbl-cap: LGA utilisation snapshot
+# | tbl-subcap: 
+# |   - "Utilisation and Uptime"
+# |   - "Unavailability"
+# | layout-ncol: 2
+
+#Table 1
+table5 = (GT(lga_snapshot_data_sorted1.head(n),rowname_col="cpo_name",groupname_col='lga_name')
+.tab_header(md(f"**Top {n} CPOs in LGAs for Utilisation and Uptime**"))
+.cols_label(
+        Utilisation_prop = "Utilisation",
+        Uptime_prop = 'Uptime',
+        value = "Evse port count",
+       )
+.cols_align(align='center')
+# formatting ----
+.fmt_number(
+    columns='value',
+    compact=True,
+    decimals=0,
+)
+.fmt_percent(columns=['Utilisation_prop','Uptime_prop'], decimals=1)
+
+)
+# add tab styles in a loop
+# Add tab styles in a loop
+for cpo,styles in cpo_styles.items():
+  table5 = table5.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=cpo),
+      )
+#Table 2
+table6 = (GT(lga_snapshot_data_sorted2.head(n),rowname_col="cpo_name",groupname_col='lga_name')
+.tab_header(md(f"**Highest {n} CPOs in LGAs for Unavailability**"))
+.cols_label(
+        Unavailability_prop="Unavailability",
+        value = "Evse port count",
+       )
+.cols_align(align='center')
+# formatting ----
+.fmt_number(
+    columns='value',
+    compact=True,
+    decimals=0,
+)
+.fmt_percent(columns=['Unavailability_prop'], decimals=1)
+)
+# Add tab styles in a loop
+for cpo,styles in cpo_styles.items():
+  table6 = table6.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=cpo),
+      )
+display(table5)
+display(table6)
+
+```
+
+---
+
+> **High level Summary**<br>**`{python} lga_inuse_max_cpo.cpo_name`** chargepoints in **`{python} lga_inuse_max_cpo.lga_name`** had the greatest proportion of *Utilisation* at **`{python} round(lga_inuse_max*100,1)`%**, but with an *Uptime* of only **`{python} round(lga_util_max_uptime.Uptime_prop*100)`%**. However, this is observed across just **`{python} int(lga_inuse_max_cpo.value)`** EVSE charging ports. **`{python} lga_evse_max_cpo.lga_name`**, with the greatest number of **`{python} int(lga_evse_max)`** EVSE ports in the **`{python} lga_evse_max_cpo.cpo_name`** network, experienced an *Utilisation* proportion of **`{python} round(lga_evse_max_cpo.Utilisation_prop*100,1)`%**.   The LGA of **`{python} lga_unavai_max_cpo.lga_name`** experienced a proportion of *Unavailability* of **`{python} round(lga_unavail_max*100,1)`%** for **`{python} lga_unavai_max_cpo.cpo_name`** charge points. 
+
+---
+
+_______________
+
+## 4. Local Government Area Utilisation, Uptime and Unavailability Breakdown
+The Utilisation, Uptime and Unavailability breakdowns give the overall proportion of time for each of the constituent statuses across all charge points in the LGAs of `{python} state`. The tables below give the top `{python} n` CPOs across LGAs for the whole month of `{python} month`.
+
+```{python}
+# | include: True
+# | echo: False
+# | label: tbl-lga_utilisation_breakdown
+# | tbl-cap: LGA Utilisation, Uptime and Unavailability breakdown
+# | tbl-subcap: 
+# |   - "Utilisation and Uptime breakdown"
+# |   - "Unavailability breakdown"
+# | layout-ncol: 2
+
+#Table 1
+table7 = (GT(lga_snapshot_data_sorted3.head(n),rowname_col="cpo_name",groupname_col='lga_name')
+.tab_header(md(f"**Breakdown of the top {n} CPOs in LGAs for Utilisation and Uptime**"))
+.cols_label(
+        Charging_prop = "Charging",
+        Finishing_prop = "Finishing",
+        Reserved_prop = "Reserved",
+        Available_prop = "Available"
+        )
+.cols_align(align='center')
+# formatting ----
+.fmt_percent(columns=['Charging_prop','Finishing_prop','Reserved_prop','Available_prop'], decimals=1)
+)
+# add tab styles in a loop
+# Add tab styles in a loop
+for cpo,styles in cpo_styles.items():
+  table7 = table7.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=cpo),
+      )
+#Table 2
+table8 = (GT(lga_snapshot_data_sorted4.head(n),rowname_col="cpo_name",groupname_col='lga_name')
+.tab_header(md(f"**Breakdown of the highest {n} CPOs in LGAs for Unavailability**"))
+.cols_label(
+        Unavailable_prop = "Unavailable",
+        out_of_order_prop = "Out of Order",
+        Unknown_prop = "Unknown",
+        Missing_prop = "Missing"
+       )
+.cols_align(align='center')
+# formatting ----
+.fmt_percent(columns=['Unavailable_prop','out_of_order_prop','Unknown_prop','Missing_prop'], decimals=1)
+)
+# Add tab styles in a loop
+for cpo,styles in cpo_styles.items():
+  table8 = table8.tab_style(
+          style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                 style.text(color=styles['text'])],
+          locations=loc.body(rows=cpo),
+      )
+display(table7)
+display(table8)
+
+```
+
+---
+
+> The LGAs of **`{python} lga_charging_sort.lga_name.values[0]`**, **`{python} lga_charging_sort.lga_name.values[1]`** and **`{python} lga_charging_sort.lga_name.values[2]`** had **`{python} lga_charging_sort.cpo_name.mode()[0]`** charge points that remained in a state of *Charging* for **`{python} round(lga_charging_sort.Charging_prop.values[0]*100,1)`%**, **`{python} round(lga_charging_sort.Charging_prop.values[1]*100,1)`%** and **`{python} round(lga_charging_sort.Charging_prop.values[2]*100,1)`%** of the observed period respectively. This accounts for a total of **`{python} int(lga_charging_sort.value.sum())`** charge points. In addition, there are **`{python} int(lga_unavailable_sort.value.sum())`** charge points that are *Unavailable* for charging for **more than 50% of the time** in the month of `{python} month`.
+---
+
+_______________
+
+## 5. Distribution of Utilisation, Uptime and Unavailability across Local Government Areas
+The distributions of Utilisation, Uptime and Unvailability across LGAs shows the distribution of the value of each metric across all LGAs for each CPO in `{python} state`. The visualisation of the distribution is not shown for CPOs wil a charge point network across less than **5** LGAs, and instead is shown as individual points.  
+```{python}
+# | include: True
+# | echo: False
+# | label: fig-lga-cpo_distribution
+# | fig-cap: Distribution of metric values across LGAs for each CPO
+# | fig-subcap: 
+# |   - "LGA-based Utilisation across CPOs"
+# |   - "LGA-based Uptime across CPOs"
+# |   - "LGA-based Unavailability across CPOs"
+# | layout-nrow: 3
+plot_data = snapshot_data2.loc[(snapshot_data2.cpo_name != 'Overall'),:].copy()
+box1 = parallel_box_plot(plot_data,state,'Utilisation_prop')
+box2 = parallel_box_plot(plot_data,state,'Uptime_prop')
+box3 = parallel_box_plot(plot_data,state,'Unavailability_prop')
+display(box1)
+display(box2)
+display(box3)
+```
+
+_______________
+
+## 6. Geographic representation of Utilisation, Uptime and Unavailability across Local Government Areas
+This shows the geographical locations of charge points and their Utilisation, Uptime and Unavailability for different CPOs at the LGA level.   
+```{python}
+# | include: True
+# | echo: False
+# | label: fig-results-comparision2
+# | fig-cap: geographic representation of charge point metrics at LGA level
+# | fig-subcap: 
+# |   - "Utilisation of charge points for LGAs"
+# |   - "Uptime of charge points for LGAs"
+# |   - "Unavailability of charge points for LGAs" 
+# | layout-nrow: 3
+plot_data = snapshot_data2.loc[snapshot_data2.cpo_name == 'Overall',:].copy()
+
+plot_data['value'] = plot_data['value'].astype(int)
+# Scale status to a percentage if it's a fraction (assuming it's a proportion)
+plot_data = plot_data.apply(lambda x: x * 100 if x.dtype == 'float' else x).round(1)  # Convert to percentage
+
+map1 = chloropleth_map(plot_data,geo_data,state,'Utilisation_prop',centroids,month)
+map2 = chloropleth_map(plot_data,geo_data,state,'Uptime_prop',centroids,month)
+map3 = chloropleth_map(plot_data,geo_data,state,'Unavailability_prop',centroids,month)
+map4 = scatter_map(scatter_data,'Utilisation_prop')
+map5 = scatter_map(scatter_data,'Uptime_prop')
+map6 = scatter_map(scatter_data,'Unavailability_prop')
+map_final1 = map1.add_traces(list(map4.select_traces()))
+map_final2 = map2.add_traces(list(map5.select_traces()))
+map_final3 = map3.add_traces(list(map6.select_traces()))
+display(map_final1)
+display(map_final2)
+display(map_final3)
+plot_data
+```
+
+_________________
+
+## 7. Utilisation, Uptime and Unavailability Summary and Breakdown for Government-funded Charge Points.
+This gives a summary and breakdown for charge points that are funded under relevant grants programs. 
+
+```{python}
+# | include: True
+# | echo: False
+# | label: tbl-gov_funded_utilisation_Availability_summary_breakdown
+# | tbl-cap: Government funded Utilisation, Uptime and Unavailability summary and LGA breakdown tables
+# | tbl-subcap: 
+# |   - "Government funded charge point Utilisation and Uptime summary"
+# |   - "Government funded charge point Unavailability summary"
+# |   - "Government funded charge point Utilisation and Uptime LGA breakdown" 
+# |   - "Government funded charge point Unavailability LGA breakdown"
+# | layout-nrow: 4
+# Identify indices where 'icon' is null
+# Create a new column 'icon' based on the 'cpo_name' values
+if len(gov_funded_filtered) > 0:
+    gov_funded_summary_table_data = gov_funded1.copy()
+    gov_funded_lga_breakdown_table_data = gov_funded2.copy()
+    gov_funded_summary_table_data['icon'] = gov_funded_summary_table_data['cpo_name'].map(icon_map)
+    gov_funded_lga_breakdown_table_data['icon'] = gov_funded_lga_breakdown_table_data['cpo_name'].map(icon_map)
+    null_icon_rows = list(gov_funded_summary_table_data[gov_funded_summary_table_data['cpo_name'] == 'Overall'].index)
+    null_icon_rows = list(gov_funded_summary_table_data[gov_funded_summary_table_data['cpo_name'] == 'Overall'].index)
+    summary_columns1 = ['government_funded','Utilisation_prop', 'Uptime_prop', 'icon','value']
+
+    table10 = (GT(gov_funded_summary_table_data[summary_columns1],rowname_col="icon")
+    .tab_header(md(f"**Utilisation and Uptime of government funded charge points**"))
+    .cols_label(
+            Utilisation_prop = "Utilisation",
+            Uptime_prop = "Uptime",
+            government_funded = 'Program and Round',
+            value = "Evse port count",
+            icon="",
+    )
+    .cols_align(align='center')
+    # formatting ----
+    .fmt_number(
+        columns='value',
+        compact=True,
+        decimals=0,
+    )
+    .fmt_percent(columns=['Utilisation_prop', 'Uptime_prop'], decimals=1)
+    .fmt_image("icon", width = '50%', height = '50%' , path="img/")
+    )
+    # add tab styles in a loop
+    # lighten colour with - lighten_color("#6229C3",colour_mix)
+    for _,styles in cpo_styles.items():
+        table10 = table10.tab_style(
+            style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                    style.text(color=styles['text'])],
+            locations=loc.body(rows=styles['icon']),
+        )
+    # add Totals row at the bottom      
+    table10 = table10.tab_style(
+            style=style.text(weight="bold"),
+            locations=loc.body(rows=null_icon_rows),
+        )
+    #Availability Table
+    summary_columns2 = ['government_funded','Unavailability_prop', 'icon','value']
+    #Define the table
+    table11 = (GT(gov_funded_summary_table_data[summary_columns2],rowname_col="icon")
+    .tab_header(md(f"**Unavailability of charge points in {state} for {month}**"))
+    .cols_label(
+            Unavailability_prop = "Unavailability",
+            government_funded = 'Program and Round',
+            value = "Evse port count",
+            icon="",
+    )
+    .cols_align(align='center')
+    # formatting ----
+    .fmt_number(
+        columns='value',
+        compact=True,
+        decimals=0,
+    )
+    .fmt_percent(columns=['Unavailability_prop'], decimals=1)
+    .fmt_image("icon", width = '50%', height = '50%' , path="img/")
+    )
+    # add tab styles in a loop
+    # lighten colour with - lighten_color("#6229C3",colour_mix)
+    for _,styles in cpo_styles.items():
+        table11 = table11.tab_style(
+            style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                    style.text(color=styles['text'])],
+            locations=loc.body(rows=styles['icon']),
+        )
+    # add Totals row at the bottom      
+    table11 = table11.tab_style(
+            style=style.text(weight="bold"),
+            locations=loc.body(rows=null_icon_rows),
+        )
+
+    #Table 1
+    table13 = (GT(lga_snapshot_data_sorted13,rowname_col="cpo_name",groupname_col='lga_name')
+    .tab_header(md(f"**Utilisation and Uptime for government funded charge points in LGAs**"))
+    .cols_label(
+            government_funded = "Program and Round",
+            Utilisation_prop = "Utilisation",
+            Uptime_prop = 'Uptime',
+            value = "Evse port count",
+        )
+    .cols_align(align='center')
+    # formatting ----
+    .fmt_number(
+        columns='value',
+        compact=True,
+        decimals=0,
+    )
+    .fmt_percent(columns=['Utilisation_prop','Uptime_prop'], decimals=1)
+
+    )
+    # Add tab styles in a loop
+    for cpo,styles in cpo_styles.items():
+        table13 = table13.tab_style(
+            style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                    style.text(color=styles['text'])],
+            locations=loc.body(rows=cpo),
+        )
+
+    #Gover funded charge points unavailability
+    table14 = (GT(lga_snapshot_data_sorted14,rowname_col="cpo_name",groupname_col='lga_name')
+    .tab_header(md(f"**Unavailability for government funded charge points in LGAs**"))
+    .cols_label(
+            government_funded = "Program and Round",
+            Unavailability_prop="Unavailability",
+            value = "Evse port count",
+        )
+    .cols_align(align='center')
+    # formatting ----
+    .fmt_number(
+        columns='value',
+        compact=True,
+        decimals=0,
+    )
+    .fmt_percent(columns=['Unavailability_prop'], decimals=1)
+    )
+    # Add tab styles in a loop
+    for cpo,styles in cpo_styles.items():
+        table14 = table14.tab_style(
+            style=[style.fill(color=lighten_colour(styles['fill'],colour_mix)),
+                    style.text(color=styles['text'])],
+            locations=loc.body(rows=cpo),
+        )
+    display(table10)
+    display(table11) 
+    display(table13)
+    display(table14)
+
+```
+
+---
+
+> **No data available on government funded charge points at this time**
+
+_________________

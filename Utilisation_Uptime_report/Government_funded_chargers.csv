@@ -1,0 +1,12 @@
+evse_id,evse_port_id,cpo_name,address,suburb,postcode,lga_code,lga_name,state,latitude,longitude,program,round
+,,Exploren,11 Paradise Beach Rd,Sanctuary Point,2540,,Shoalhaven City Council,NSW,-35.1043696,150.624673,Destination Charging,1
+,,Exploren,67-71 Bulahdelah Way,Bulahdelah,2423,,Mid-Coast Council,NSW,-32.4090273,152.2106784,Destination Charging,1
+,,Exploren,33 Gugandi Rd,Narara,2250,,Central Coast Council,NSW,-33.3930817,151.3288129,Destination Charging,1
+,,Exploren,330 Fishery Point Rd,Bonnells Bay,2264,,Mid-Coast Council,NSW,-33.1110371,151.5320528,Destination Charging,1
+,,Exploren,76 Ford St,Ganmain ,2702,,Coolamon Shire Council,NSW,-34.7933852,147.0388513,Destination Charging,2
+,,Exploren,17 John Taylor Cres,Tathra,2550,,Bega Valley Shire Council,NSW,-36.7262841,149.9790098,Destination Charging,2
+,,Exploren,146 Dangar St,Armidale,2350,,Armidale Regional Council,NSW,-30.5167599,151.6636723,Destination Charging,2
+,,Exploren,204 Beach Rd ,Batehaven,2536,,Eurobodalla Shire Council,NSW,-35.7296697,150.1960774,Destination Charging,2
+,,Exploren,25 Buller St ,Port Macquarie,2444,,Port Macquarie-Hastings Council,NSW,-31.430177,152.9017453,Destination Charging,2
+,,Exploren,83 Macquarie Rd,Springwood,2777,,Blue Mountains City Council,NSW,-33.6984685,150.5696737,Destination Charging,2
+,,Exploren,12 Mingara Rd ,Tumbi Umbi,2261,,Central Coast Council,NSW,-33.3619632,151.4407242,Destination Charging,2

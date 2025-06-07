@@ -1,0 +1,41 @@
+# Ignore environment variables file
+.env
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+geodf_lga_filter.json
+geodf_poa_filter.json
+geogcoord_lga_df.csv
+wa_oct__processed_data.csv
+
+# Python
+__pycache__/
+data/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/

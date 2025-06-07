@@ -1,0 +1,46 @@
+name: Deploy to Azure
+
+on:
+  # workflow_dispatch:  # Manual trigger for now
+  push:
+    branches:
+      - main
+  
+jobs:
+  build-and-deploy:
+    name: Build container image
+    runs-on: ubuntu-latest
+    
+    env:
+      IMAGE_NAME: utilisation_uptime_dashboard
+
+    steps:
+      # Step 1: Check out the code from the GitHub repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      #log in to registry
+      - name: Log into registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{secrets.ACR_ENDPOINT}}
+          username: ${{secrets.ACR_USERNAME}}
+          password: ${{secrets.ACR_PASSWORD}}      
+
+      # Step 3: Build the Docker image
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./utilisation_uptime_dashboard
+          file: ./utilisation_uptime_dashboard/Dockerfile
+          push: true
+          tags: ${{secrets.ACR_ENDPOINT}}/${{ env.IMAGE_NAME }}:latest
+              
+      # Step 4: Deploy to Azure App Service
+      # Ensure AZURE_WEBAPP_NAME and AZURE_CREDENTIALS are added in GitHub Secrets
+      #- name: Deploy to Azure Web App
+      #  uses: azure/webapps-deploy@v2
+      #  with:
+      #    app-name: 
+      #    images: your-registry-name.azurecr.io/your-image-name:latest
+      #    credentials: 

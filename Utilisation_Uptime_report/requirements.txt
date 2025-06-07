@@ -1,0 +1,16 @@
+pandas
+numpy
+plotly
+pathlib
+jupyter
+great_tables
+matplotlib
+geopandas
+datetime
+pytz
+faicons
+shiny
+shinywidgets
+pyarrow
+
+
