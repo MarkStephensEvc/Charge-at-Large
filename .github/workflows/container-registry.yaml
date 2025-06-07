@@ -27,7 +27,7 @@ jobs:
           username: ${{secrets.ACR_USERNAME}}
           password: ${{secrets.ACR_PASSWORD}}      
 
-      # Step 3: Build the Docker image
+        # Step 3: Build the Docker image
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
