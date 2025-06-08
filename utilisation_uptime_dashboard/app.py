@@ -164,29 +164,34 @@ app_ui = ui.page_fillable(
             ),
         ),
         ui.nav_panel(
-            "debug",
+            "Geographic Coverage Statistics",
             ui.output_text('debug_vars'),
         ),
         id="navset",
-        title=ui.popover(
-            ui.div(
-                [
-                    ui.h4(
-                        ui.output_text("selected_period"),
-                        style="margin: 0;"  # Ensure no unnecessary margin
-                    ),
-                    fa.icon_svg("circle-info").add_class("ms-2"),
-                ],
-                style="display: flex; align-items: center; gap: 0.5rem;"
+        title=ui.div(
+            [ui.popover(
+                ui.div(
+                    [
+                        ui.h4(
+                            ui.output_text("selected_period"),
+                            style="margin: 0;"  # Ensure no unnecessary margin
+                        ),
+                        fa.icon_svg("circle-info").add_class("ms-2"),
+                    ],
+                    style="display: flex; align-items: center; gap: 0.5rem;"
+                ),
+                ui.markdown(
+                    '''
+                    **Uptime**: the proportion of time the charger is Charging, Finishing, Reserved or Available out of the observable period.<br>
+                    **Utilisation**: the proportion of time the charger is charging, finishing or reserved out of the observable period.<br>
+                    **Unavailability**: the proportion of time the charger is unavailable or Out of Order out of the observable period.<br>
+                    '''
+                ),
+                placement='right'
             ),
-            ui.markdown(
-                '''
-                **Uptime**: the proportion of time the charger is Charging, Finishing, Reserved or Available out of the observable period.<br>
-                **Utilisation**: the proportion of time the charger is charging, finishing or reserved out of the observable period.<br>
-                **Unavailability**: the proportion of time the charger is unavailable or Out of Order out of the observable period.<br>
-                '''
-            ),
-            placement='right'
+             ui.h6("updated 08/06/2025")
+             ],
+            style="display: flex; align-items: center; gap: 0.5rem;"            
         ),
         window_title = "Charge@Large: Charge point Utilisation and Uptime Dashboard",     
         fillable=True

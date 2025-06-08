@@ -22,7 +22,7 @@ month = (datetime.now().replace(day=1) - timedelta(days=1)).strftime('%B')
 
 # Period select from date range
 # Convert to string format required by input_date_range
-date_range_start = datetime(year = 2025, month = 3, day = 1).strftime("%Y-%m-%d")
+date_range_start = datetime(year = 2025, month = 4, day = 1).strftime("%Y-%m-%d")
 date_range_end = datetime.now().strftime("%Y-%m-%d")
 
 month_to_number = {
