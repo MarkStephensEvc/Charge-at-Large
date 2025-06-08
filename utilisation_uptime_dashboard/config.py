@@ -161,7 +161,8 @@ interval_mapping = {
     "10080min": pd.Timedelta(weeks=1),
 }
 
-interval_options = {"60min": "Hourly",
+interval_options = {"30min":"Half-hourly",
+                    "60min": "Hourly",
                     "1440min":"Daily",
                     "10080min":"Weekly",
                     "ME":"Monthly",
@@ -171,7 +172,8 @@ interval_options = {"60min": "Hourly",
 # inverse interval options dictionary
 interval_options_inverse = { v:k for k,v in interval_options.items()}
 
-interval_options2 = {"60min": "hour",
+interval_options2 = {"30min":"half-hour",
+                    "60min": "hour",
                     "1440min":"day",
                     "10080min":"week",
                     "ME":"month",

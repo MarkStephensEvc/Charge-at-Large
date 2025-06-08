@@ -630,7 +630,7 @@ def server(input: Inputs, output: Outputs, session: Session):
                 print(f'length of postcode_data is {len(data_list[2])}')
                 postcode_data.set(data_list[2])
                 #data_list[1].to_csv('postcode_data_inspect.csv')
-                print("Compute completed successfully.")
+                print("Compute completed successfully. Update")
                 # Enable reactivity for the outputs
                 #react_off.set(False)  
                 # Increment computation_count to trigger output refresh

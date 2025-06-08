@@ -438,7 +438,7 @@ def uptime_utilisation_unavailability(df1: pd.DataFrame):
 
 # weighted mean
 def weighted_mean(df1):
-    
+    print('update')
     return None
     
     
